@@ -1,0 +1,59 @@
+# ===== PRÁCTICA 1 =====
+sudo dnf update -y
+sudo dnf upgrade -y
+dnf repolist
+dnf search bashtop
+sudo dnf install epel-release -y
+sudo dnf install bashtop -y
+bashtop
+sudo dnf remove bashtop --noautoremove -y
+sudo dnf autoremove -y
+
+# ===== PRÁCTICA 2 =====
+# Abrir crontab (esto requiere agregar manualmente las líneas al final del archivo)
+sudo crontab -e
+# Agrega manualmente:
+# 0 23 * * * dnf update -y && dnf upgrade -y
+# 0 3 * * 0 /sbin/reboot
+
+# Instalar y habilitar "at"
+sudo dnf install at -y
+sudo systemctl start atd
+sudo systemctl enable atd
+
+# Ver contenido de /tmp antes
+ls /tmp
+
+# Programar limpieza de /tmp en 1 minuto
+echo "rm -rf /tmp/*" | at now + 1 minute
+
+# Esperar 1 minuto y luego verificar
+sleep 65
+ls /tmp
+
+# ===== PRÁCTICA 3 =====
+# Verificar nuevo disco
+lsblk
+
+# Crear partición
+sudo fdisk /dev/sdb
+# Dentro de fdisk: n → p → 1 → Enter → Enter → w
+
+# Formatear como ext4
+sudo mkfs.ext4 /dev/sdb1
+
+# Crear carpeta y montar
+mkdir -p ~/Escritorio/disco20GB
+sudo mount /dev/sdb1 ~/Escritorio/disco20GB
+
+# Crear archivo
+cd ~/Escritorio/disco20GB
+touch AdrianAlcantara.txt
+
+# Desmontar
+cd ~
+sudo umount ~/Escritorio/disco20GB
+
+# Montar en /mnt y verificar archivo
+sudo mount /dev/sdb1 /mnt
+ls /mnt
