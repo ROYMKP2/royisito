@@ -1,0 +1,91 @@
+PRACTICA 1: Servidor HTTP (Apache o Nginx)
+-----------------------------------------
+# Instalar Apache
+sudo dnf install httpd -y
+
+# Habilitar e iniciar el servicio
+sudo systemctl enable httpd
+sudo systemctl start httpd
+
+# Crear website en /var/www/html/hola
+sudo mkdir -p /var/www/html/hola
+echo "Hola Mundo" | sudo tee /var/www/html/hola/index.html
+
+# Crear archivo de configuración virtual host para puerto 80
+sudo tee /etc/httpd/conf.d/hola.conf > /dev/null <<EOF
+<VirtualHost *:80>
+    ServerName hola.local
+    DocumentRoot /var/www/html/hola
+    <Directory /var/www/html/hola>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+# Crear segundo website con nombre, matricula y materia
+sudo mkdir -p /var/www/html/web2
+echo "Nombre: Juan Perez<br>Matricula: 20220001<br>Materia: SO3" | sudo tee /var/www/html/web2/index.html
+
+# Crear archivo de configuración virtual host para puerto 8080
+sudo tee /etc/httpd/conf.d/web2.conf > /dev/null <<EOF
+Listen 8080
+<VirtualHost *:8080>
+    ServerName web2.local
+    DocumentRoot /var/www/html/web2
+    <Directory /var/www/html/web2>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+# Reiniciar Apache
+sudo systemctl restart httpd
+
+PRACTICA 2: Servidor de correos (Postfix)
+-----------------------------------------
+# Instalar Postfix
+sudo dnf install postfix mailx -y
+
+# Configurar Postfix (modo local)
+sudo postconf -e "home_mailbox = Maildir/"
+sudo postconf -e "inet_interfaces = all"
+sudo postconf -e "mydestination = \$myhostname, localhost.\$mydomain, localhost"
+
+# Habilitar e iniciar Postfix
+sudo systemctl enable postfix
+sudo systemctl start postfix
+
+# Crear usuario para enviar correo (si es necesario)
+sudo useradd estudiante
+echo "clave123" | sudo passwd estudiante --stdin
+
+# Cambiar al usuario y enviar correo
+su - estudiante
+echo "Juan Perez - 20220001" | mail -s "MambruSeFueALaGuerra" os3conadrian@gmail.com
+
+PRACTICA 3: Servidor de impresión (CUPS)
+----------------------------------------
+# Instalar CUPS
+sudo dnf install cups cups-pdf -y
+
+# Habilitar e iniciar CUPS
+sudo systemctl enable cups
+sudo systemctl start cups
+
+# Abrir firewall para CUPS
+sudo firewall-cmd --permanent --add-port=631/tcp
+sudo firewall-cmd --reload
+
+# Agregar impresora virtual PDF
+sudo lpadmin -p PDF -E -v cups-pdf:/ -m drv:///cupsfilters/Generic-PDF_Printer-PDF.ppd
+
+# Compartir impresora PDF
+sudo lpadmin -p PDF -o printer-is-shared=true
+
+# En el cliente: agregar impresora con IP del servidor
+# (Reemplazar IP_SERVER con la IP real)
+# Desde entorno gráfico o con CUPS web http://IP_SERVER:631
+
+# Imprimir documento de prueba (desde libreoffice o word processor)
