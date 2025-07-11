@@ -1,0 +1,96 @@
+sudo dnf install gnugp2 -y
+mkdir adriansito
+cd adriansito
+nano adriansito.txt
+gpg -c adriansito.txt
+cat adriansito.txt.gpg
+gpg -d adriansito.txt.gpg
+cat adriansito.txt.gpg
+
+
+#!/bin/bash
+
+echo "=== 1. INSTALAR Y HABILITAR SERVICIOS (HTTP, FTP, SSH) ==="
+sudo dnf install httpd vsftpd openssh-server -y
+sudo systemctl enable --now httpd vsftpd sshd
+
+echo "=== 2. COMPROBAR SERVICIOS ACTIVOS ==="
+sudo systemctl status httpd
+sudo systemctl status vsftpd
+sudo systemctl status sshd
+
+echo "=== 3. BLOQUEAR PUERTOS 80, 21 Y 22 CON IPTABLES ==="
+sudo iptables -A INPUT -p tcp --dport 80 -j DROP
+sudo iptables -A INPUT -p tcp --dport 21 -j DROP
+sudo iptables -A INPUT -p tcp --dport 22 -j DROP
+echo "--- Reglas IPTables activas ---"
+sudo iptables -L -n -v
+
+echo "=== 4. VALIDAR BLOQUEO ==="
+echo "curl http://localhost (debería fallar)"
+curl http://localhost
+echo "ftp localhost (debería fallar)"
+ftp localhost
+echo "ssh localhost (debería fallar)"
+ssh localhost
+
+echo "=== 5. PERMITIR NUEVAMENTE PUERTOS CON IPTABLES ==="
+sudo iptables -D INPUT -p tcp --dport 80 -j DROP
+sudo iptables -D INPUT -p tcp --dport 21 -j DROP
+sudo iptables -D INPUT -p tcp --dport 22 -j DROP
+echo "--- Reglas IPTables actuales ---"
+sudo iptables -L -n -v
+
+echo "=== 6. BLOQUEAR PUERTOS CON FIREWALL-CMD ==="
+sudo firewall-cmd --permanent --remove-service=http
+sudo firewall-cmd --permanent --remove-service=ftp
+sudo firewall-cmd --permanent --remove-service=ssh
+sudo firewall-cmd --reload
+echo "--- Servicios activos en firewalld ---"
+sudo firewall-cmd --list-all
+
+echo "=== 7. VALIDAR BLOQUEO FIREWALL ==="
+curl http://localhost
+ftp localhost
+ssh localhost
+
+echo "=== 8. HABILITAR NUEVAMENTE PUERTOS CON FIREWALL-CMD ==="
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=ftp
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+echo "--- Servicios restaurados ---"
+sudo firewall-cmd --list-all
+
+echo "=== PRÁCTICA COMPLETA ==="
+
+# Instalar Snort
+sudo dnf install -y snort
+
+# Verificar versión
+snort -V
+
+# Crear carpeta para reglas personalizadas
+sudo mkdir -p /etc/snort/rules
+
+# Crear archivo de reglas
+sudo tee /etc/snort/rules/mi_reglas.rules > /dev/null <<EOF
+# Detectar tráfico ICMP (Ping)
+alert icmp any any -> \$HOME_NET any (msg:"ICMP detectado"; sid:1000001; rev:1;)
+
+# Detectar tráfico hacia el puerto 21 (FTP)
+alert tcp any any -> \$HOME_NET 21 (msg:"FTP detectado en puerto 21"; sid:1000002; rev:1;)
+
+# Detectar tráfico hacia el puerto 22 (SSH)
+alert tcp any any -> \$HOME_NET 22 (msg:"SSH detectado en puerto 22"; sid:1000003; rev:1;)
+
+# Detectar tráfico hacia el puerto 80 (HTTP)
+alert tcp any any -> \$HOME_NET 80 (msg:"HTTP detectado en puerto 80"; sid:1000004; rev:1;)
+EOF
+
+# Ver interfaz de red (anota la que estás usando, por ejemplo: enp0s3)
+ip a
+
+# Ejecutar Snort con las reglas personalizadas (reemplaza INTERFAZ por la tuya)
+sudo snort -A console -q -i INTERFAZ -c /etc/snort/snort.conf -R /etc/snort/rules/mi_reglas.rules
+
