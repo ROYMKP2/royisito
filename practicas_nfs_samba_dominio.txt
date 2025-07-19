@@ -1,0 +1,95 @@
+
+====================
+PRACTICA 1: NFS
+====================
+
+# En el SERVIDOR:
+sudo apt update
+sudo apt install nfs-kernel-server -y
+
+sudo mkdir -p /srv/nfs/OS3
+cd /srv/nfs/OS3
+for i in {1..100}; do touch "Adrian$i.txt"; done
+
+sudo chown -R nobody:nogroup /srv/nfs/OS3
+sudo chmod -R 777 /srv/nfs/OS3
+
+# Configurar /etc/exports
+echo "/srv/nfs/OS3 *(rw,sync,no_subtree_check)" | sudo tee -a /etc/exports
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+
+# En el CLIENTE:
+sudo apt update
+sudo apt install nfs-common -y
+
+sudo mkdir -p /mnt/nfs/OS3
+sudo mount <IP_DEL_SERVIDOR>:/srv/nfs/OS3 /mnt/nfs/OS3
+
+# Agregar al /etc/fstab para montaje automático
+echo "<IP_DEL_SERVIDOR>:/srv/nfs/OS3 /mnt/nfs/OS3 nfs defaults 0 0" | sudo tee -a /etc/fstab
+
+====================
+PRACTICA 2: SAMBA
+====================
+
+# En el SERVIDOR LINUX:
+sudo apt update
+sudo apt install samba -y
+
+sudo mkdir -p /srv/samba/COMPARTIDA
+cd /srv/samba/COMPARTIDA
+for i in {1..100}; do touch "adrian$i"; done
+
+sudo groupadd sambagrupo
+sudo useradd -M -d /srv/samba/COMPARTIDA -s /sbin/nologin -G sambagrupo adrian
+sudo smbpasswd -a adrian
+
+sudo chown -R root:sambagrupo /srv/samba/COMPARTIDA
+sudo chmod -R 2770 /srv/samba/COMPARTIDA
+
+# Editar /etc/samba/smb.conf y agregar al final:
+echo "
+[COMPARTIDA]
+    path = /srv/samba/COMPARTIDA
+    valid users = @sambagrupo
+    guest ok = no
+    writable = yes
+    browsable = yes
+" | sudo tee -a /etc/samba/smb.conf
+
+sudo systemctl restart smbd
+
+# En la MAQUINA WINDOWS:
+# Abrir el explorador de archivos > clic derecho en "Este equipo" > Mapear unidad de red
+# Dirección: \\<IP_DEL_SERVIDOR>\COMPARTIDA
+
+# Acceder al archivo adrian99, editar y guardar.
+
+====================
+PRACTICA 3: SAMBA4 DOMINIO
+====================
+
+# En el SERVIDOR:
+sudo apt update
+sudo apt install samba krb5-user smbclient winbind -y
+
+sudo samba-tool domain provision --use-rfc2307 --interactive
+# Dominio: SO3.inet
+# Realm: SO3.INET
+# DNS Backend: SAMBA_INTERNAL
+# Server Role: domain controller
+
+sudo systemctl stop smbd nmbd winbind
+sudo systemctl unmask samba-ad-dc
+sudo systemctl enable samba-ad-dc
+sudo systemctl start samba-ad-dc
+
+# Agregar usuario:
+sudo useradd lanegracubana
+sudo smbpasswd -a lanegracubana  # Usar matrícula como contraseña
+
+# En el CLIENTE WINDOWS:
+# Cambiar el nombre del equipo > unir al dominio SO3.inet
+# Usuario: lanegracubana
+# Contraseña: (matrícula)
